@@ -3,7 +3,7 @@
 const tg = window.Telegram && window.Telegram.WebApp;
 const tuser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
 const uid = tuser ? tuser.id : null;
-// ��������: �஢�ઠ �� ������ - �� 㤮��⢮, � �� ���� (�. README).
+// ВНИМАНИЕ: проверка на клиенте — это удобство, а не защита (см. README).
 const isAdmin = !!uid && (CFG.ADMIN_IDS || []).map(Number).includes(Number(uid));
 if (tg) {
   tg.ready(); tg.expand();
@@ -13,17 +13,17 @@ if (tg) {
 const MP = {
   ozon: { name: 'Ozon', color: '#005bff' },
   wb:   { name: 'Wildberries', color: '#cb11ab' },
-  ym:   { name: '������ ��થ�', color: '#e5a800' }
+  ym:   { name: 'Яндекс Маркет', color: '#e5a800' }
 };
 const MPK = Object.keys(MP);
 
-/* ---------- �⨫��� ---------- */
+/* ---------- утилиты ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
-const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast('�� 墠⨫� ����� ��㧥�'); return false; } };
-const fmt = n => (n == null || n === '' || isNaN(n)) ? null : new Intl.NumberFormat('ru-RU').format(n) + ' ?';
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast('Не хватило памяти браузера'); return false; } };
+const fmt = n => (n == null || n === '' || isNaN(n)) ? null : new Intl.NumberFormat('ru-RU').format(n) + ' ₽';
 const haptic = (t = 'light') => { try { tg && tg.HapticFeedback.impactOccurred(t); } catch (e) {} };
 const openLink = u => { if (tg && tg.openLink) tg.openLink(u); else window.open(u, '_blank'); };
 let toastT;
@@ -37,12 +37,12 @@ function setPath(o, p, v) {
   const t = ks.reduce((a, k) => a[k], o); t[last] = v;
 }
 
-/* ---------- ����� ---------- */
+/* ---------- данные ---------- */
 let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
 try {
   const r = await fetch(CFG.DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
   if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.products)) data = j; }
-} catch (e) { /* ��� data.json - �ᯮ��㥬 ���⮢� ����� */ }
+} catch (e) { /* нет data.json — используем стартовые данные */ }
 if (isAdmin) { const d = load('rb_draft'); if (d && Array.isArray(d.products)) data = d; }
 const saveDraft = () => save('rb_draft', data);
 
@@ -84,7 +84,7 @@ const img = p => p.image || canSvg(p);
 const themeStyle = p => `--c1:${esc(p.theme.c1)};--c2:${esc(p.theme.c2)}`;
 
 function searchUrl(mp, p, vol) {
-  const q = encodeURIComponent(`Red Bull ${p.name} ${vol} ��`);
+  const q = encodeURIComponent(`Red Bull ${p.name} ${vol} мл`);
   return { ozon: `https://www.ozon.ru/search/?text=${q}`,
     wb: `https://www.wildberries.ru/catalog/0/search.aspx?search=${q}`,
     ym: `https://market.yandex.ru/search?text=${q}` }[mp];
@@ -93,7 +93,7 @@ const variant = (p, vol) => p.variants.find(v => v.vol === vol);
 const offer = (p, vol, mp) => { const v = variant(p, vol); return v && v.offers && v.offers[mp] || { url: '', price: null }; };
 const linkFor = (p, vol, mp) => offer(p, vol, mp).url || searchUrl(mp, p, vol);
 
-/* ---------- ���業� �� ��뫪� (best-effort, ⮫쪮 �஭⥭�) ---------- */
+/* ---------- автоцена по ссылке (best-effort, только фронтенд) ---------- */
 function findPrice(o) {
   if (!o || typeof o !== 'object') return null;
   for (const k of ['price', 'lowPrice']) {
@@ -128,27 +128,11 @@ async function fetchPrice(url) {
   return null;
 }
 
-/* ---------- ������� ---------- */
+/* ---------- главная ---------- */
 function renderHome() {
   $('#main').innerHTML = `
-    <section class="home-hero">
-      <div class="eyebrow"><span>ENERGY SELECT / 2026</span><span class="live-dot">� �������</span></div>
-      <div class="hero-copy"><h1>YOUR<br><em>WING.</em></h1><p>�롥� ᢮� ���� � �ࠧ� ����� ���襥 �।������� �� ��થ⯫����.</p></div>
-      <div class="hero-orb" aria-hidden="true"><img src="${img(data.products[0])}" alt=""></div>
-      <div class="hero-meta"><span>08 EDITIONS</span><span>SCROLL TO CHOOSE </span></div>
-    </section>
-    <section class="catalog-head"><div><span class="kicker">�������</span><h2>�롥� ������</h2></div><span class="catalog-count">${String(data.products.length).padStart(2, '0')}</span></section>
-    <div class="grid">${data.products.map((p, i) => `
-      <button class="card" style="${themeStyle(p)}" data-act="open" data-id="${esc(p.id)}">
-        <span class="card-index">0${i + 1}</span><span class="card-arrow">?</span>
-        <img src="${img(p)}" alt="${esc(p.name)}">
-        <div class="n">${esc(p.name)}</div><div class="t">${esc(p.tagline)}</div>
-      </button>`).join('')}
-    </div>`;
-  return;
-  $('#main').innerHTML = `
     <h1 class="h1">Red Bull</h1><div class="stripe"></div>
-    <p class="sub">�롥� ���� - ������� ���ᠭ�� � 業� �� ��થ⯫����</p>
+    <p class="sub">Выбери вкус — покажем описание и цены на маркетплейсах</p>
     <div class="grid">${data.products.map(p => `
       <button class="card" style="${themeStyle(p)}" data-act="open" data-id="${esc(p.id)}">
         <img src="${img(p)}" alt="${esc(p.name)}">
@@ -157,7 +141,7 @@ function renderHome() {
     </div>`;
 }
 
-/* ---------- ����窠 ⮢�� ---------- */
+/* ---------- карточка товара ---------- */
 function openDetail(id) {
   const p = P(id); if (!p) return;
   state.pid = id; state.qty = 1;
@@ -171,52 +155,31 @@ function openDetail(id) {
 function minPrice(p, vol, mp) { const pr = offer(p, vol, mp).price; return pr == null || pr === '' ? null : Number(pr); }
 function renderDetail() {
   const p = P(state.pid); if (!p) return;
-  {
-  const el = $('#detail'); el.style.cssText = themeStyle(p);
-  const cur = minPrice(p, state.vol, state.mp);
-  el.innerHTML = `
-    <div class="detail-hero">
-      <button class="back" data-act="closeDetail" aria-label="�����"></button>
-      <span class="detail-index">EDITION / ${esc(p.id).toUpperCase()}</span>
-      <div class="detail-can"><img src="${img(p)}" alt="${esc(p.name)}"></div>
-      <div class="detail-title"><h2>${esc(p.name)}</h2><p>${esc(p.tagline)}</p></div>
-    </div>
-    <div class="dbody">
-      <section class="detail-about"><span class="kicker">� �����</span><p>${esc(p.desc)}</p><div class="chips">${p.facts.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div></section>
-      <section class="select-block"><span class="kicker">�����</span><div class="seg">${p.variants.map(v => `<button class="${v.vol === state.vol ? 'on' : ''}" data-act="vol" data-v="${v.vol}">${v.vol}<small> ��</small></button>`).join('')}</div></section>
-      <section class="select-block"><span class="kicker">��� ������</span><div class="mps">${MPK.map(k => {
-        const o = offer(p, state.vol, k); const pr = fmt(o.price);
-        return `<button class="mp ${state.mp === k ? 'on' : ''}" data-act="mp" data-m="${k}"><span class="dot" style="background:${MP[k].color}"></span><span class="nm">${MP[k].name}<small>${o.url ? '��ﬠ� ��뫪�' : '���� ⮢��'}</small></span><span class="pr ${pr ? '' : 'none'}">${pr || '�������'}</span></button>`;
-      }).join('')}</div></section>
-    </div>
-    <div class="buybar"><div class="qty"><button data-act="qty" data-d="-1">?</button><span>${state.qty}</span><button data-act="qty" data-d="1">+</button></div><button class="cta" data-act="add">� ������� <span>${cur ? fmt(cur * state.qty) : '?'}</span></button></div>`;
-  return;
-  }
   const el = $('#detail'); el.style.cssText = themeStyle(p);
   const cur = minPrice(p, state.vol, state.mp);
   el.innerHTML = `
     <div class="dhero">
-      <button class="back glass" data-act="closeDetail" aria-label="�����"><</button>
+      <button class="back glass" data-act="closeDetail" aria-label="Назад">‹</button>
       <img class="dcan" src="${img(p)}" alt="${esc(p.name)}">
       <h2>${esc(p.name)}</h2><p>${esc(p.tagline)}</p>
     </div>
     <div class="dbody">
-      <div class="glass box"><h3>� ����</h3><p>${esc(p.desc)}</p>
+      <div class="glass box"><h3>О вкусе</h3><p>${esc(p.desc)}</p>
         <div class="chips">${p.facts.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div></div>
-      <div class="glass box"><h3>����</h3>
-        <div class="seg">${p.variants.map(v => `<button class="${v.vol === state.vol ? 'on' : ''}" data-act="vol" data-v="${v.vol}">${v.vol} ��</button>`).join('')}</div></div>
-      <div class="glass box"><h3>��� �㯨��</h3>
+      <div class="glass box"><h3>Объём</h3>
+        <div class="seg">${p.variants.map(v => `<button class="${v.vol === state.vol ? 'on' : ''}" data-act="vol" data-v="${v.vol}">${v.vol} мл</button>`).join('')}</div></div>
+      <div class="glass box"><h3>Где купить</h3>
         <div class="mps">${MPK.map(k => {
           const o = offer(p, state.vol, k); const pr = fmt(o.price);
           return `<button class="mp ${state.mp === k ? 'on' : ''}" data-act="mp" data-m="${k}">
             <span class="dot" style="background:${MP[k].color}"></span>
-            <span class="nm">${MP[k].name}<small>${o.url ? '��ﬠ� ��뫪�' : '���� �� ��થ⯫����'}</small></span>
-            <span class="pr ${pr ? '' : 'none'}">${pr || '業� �� ᠩ�'}</span></button>`;
+            <span class="nm">${MP[k].name}<small>${o.url ? 'прямая ссылка' : 'поиск по маркетплейсу'}</small></span>
+            <span class="pr ${pr ? '' : 'none'}">${pr || 'цена на сайте'}</span></button>`;
         }).join('')}</div></div>
     </div>
     <div class="buybar glass">
-      <div class="qty"><button data-act="qty" data-d="-1">?</button><span>${state.qty}</span><button data-act="qty" data-d="1">+</button></div>
-      <button class="cta" data-act="add">� ��২��${cur ? ' � ' + fmt(cur * state.qty) : ''}</button>
+      <div class="qty"><button data-act="qty" data-d="-1">−</button><span>${state.qty}</span><button data-act="qty" data-d="1">+</button></div>
+      <button class="cta" data-act="add">В корзину${cur ? ' · ' + fmt(cur * state.qty) : ''}</button>
     </div>`;
 }
 function addToCart() {
@@ -224,10 +187,10 @@ function addToCart() {
   const it = cart.find(i => i.pid === p.id && i.vol === state.vol && i.mp === state.mp);
   if (it) it.qty += state.qty; else cart.push({ pid: p.id, vol: state.vol, mp: state.mp, qty: state.qty });
   save('rb_cart', cart); stat('adds', p.id); haptic('medium'); updateBadge();
-  toast(`${p.name} ${state.vol} �� � ${MP[state.mp].name} - � ��২��`);
+  toast(`${p.name} ${state.vol} мл · ${MP[state.mp].name} — в корзине`);
 }
 
-/* ---------- ��২�� ---------- */
+/* ---------- корзина ---------- */
 const cartCount = () => cart.reduce((s, i) => s + i.qty, 0);
 function updateBadge() {
   const b = $('#badge'); const n = cartCount(); b.textContent = n; b.hidden = !n;
@@ -235,9 +198,9 @@ function updateBadge() {
 function renderCart() {
   cart = cart.filter(i => P(i.pid) && variant(P(i.pid), i.vol));
   if (!cart.length) {
-    $('#main').innerHTML = `<h1 class="h1">��২��</h1><div class="stripe"></div>
+    $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>
       <div class="empty"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 1.9-1.4L21 8H6.2"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
-      <p>���� ����.<br>������ ���ࣥ⨪ �� �������.</p></div>`;
+      <p>Пока пусто.<br>Добавь энергетик на главной.</p></div>`;
     return;
   }
   let total = 0, unknown = false;
@@ -246,15 +209,15 @@ function renderCart() {
     if (pr == null) unknown = true; else total += pr * i.qty;
     return `<div class="glass item">
       <div class="th" style="${themeStyle(p)}"><img src="${img(p)}" alt=""></div>
-      <div class="mid"><b>${esc(p.name)}</b><small>${i.vol} ��</small><br>
+      <div class="mid"><b>${esc(p.name)}</b><small>${i.vol} мл</small><br>
         <span class="tag" style="background:${MP[i.mp].color}">${MP[i.mp].name}</span></div>
-      <div class="rt"><div class="qty"><button data-act="cq" data-i="${idx}" data-d="-1">?</button><span>${i.qty}</span><button data-act="cq" data-i="${idx}" data-d="1">+</button></div>
-        <b>${pr == null ? '業� �� ᠩ�' : fmt(pr * i.qty)}</b>
-        <button class="x" data-act="rm" data-i="${idx}" aria-label="�������"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>`;
+      <div class="rt"><div class="qty"><button data-act="cq" data-i="${idx}" data-d="-1">−</button><span>${i.qty}</span><button data-act="cq" data-i="${idx}" data-d="1">+</button></div>
+        <b>${pr == null ? 'цена на сайте' : fmt(pr * i.qty)}</b>
+        <button class="x" data-act="rm" data-i="${idx}" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>`;
   }).join('');
-  $('#main').innerHTML = `<h1 class="h1">��২��</h1><div class="stripe"></div>${rows}
-    <div class="glass total"><span>�⮣�${unknown ? ' (��� ����権 ��� 業�)' : ''}</span><b>${fmt(total) || '0 ?'}</b></div>
-    <button class="cta red" style="width:100%" data-act="checkout">��������</button>`;
+  $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>${rows}
+    <div class="glass total"><span>Итого${unknown ? ' (без позиций без цены)' : ''}</span><b>${fmt(total) || '0 ₽'}</b></div>
+    <button class="cta red" style="width:100%" data-act="checkout">Заказать</button>`;
 }
 function checkout() {
   if (!cart.length) return;
@@ -263,11 +226,11 @@ function checkout() {
   const groups = {};
   links.forEach(l => (groups[l.i.mp] = groups[l.i.mp] || []).push(l));
   const m = $('#modal'); m.hidden = false;
-  m.innerHTML = `<div class="glass mbox"><h3>��ଫ���� ������</h3>
-    <p>��થ⯫���� �� �ਭ����� ��২�� �����, ���⮬� ����� ⮢�� ��஥��� �� ᢮�� ��࠭�� - ������ ��� � ��২�� ��થ⯫���.</p>
+  m.innerHTML = `<div class="glass mbox"><h3>Оформление заказа</h3>
+    <p>Маркетплейсы не принимают корзину извне, поэтому каждый товар откроется на своей странице — добавь его в корзину маркетплейса.</p>
     ${Object.keys(groups).map(k => `<div class="grp"><b>${MP[k].name}</b>
-      ${groups[k].map(l => `<button class="cta" data-act="go" data-k="${links.indexOf(l)}">${esc(l.p.name)} ${l.i.vol} �� ? ${l.i.qty}</button>`).join('')}</div>`).join('')}
-    <button class="ghost" style="width:100%" data-act="closeModal">�������</button></div>`;
+      ${groups[k].map(l => `<button class="cta" data-act="go" data-k="${links.indexOf(l)}">${esc(l.p.name)} ${l.i.vol} мл × ${l.i.qty}</button>`).join('')}</div>`).join('')}
+    <button class="ghost" style="width:100%" data-act="closeModal">Закрыть</button></div>`;
   m._links = links;
 }
 function go(l) {
@@ -278,11 +241,11 @@ function go(l) {
 /* ---------- Info ---------- */
 function renderInfo() {
   $('#main').innerHTML = `<h1 class="h1">Info</h1><div class="stripe"></div>
-    <div class="glass box"><div class="info-text">${esc(data.info || '� �஥��')}</div></div>
-    ${isAdmin ? `<button class="cta red" style="width:100%;margin-top:16px" data-act="openAdmin">�����-������</button>` : ''}`;
+    <div class="glass box"><div class="info-text">${esc(data.info || 'О проекте')}</div></div>
+    ${isAdmin ? `<button class="cta red" style="width:100%;margin-top:16px" data-act="openAdmin">Админ-панель</button>` : ''}`;
 }
 
-/* ---------- �������� ---------- */
+/* ---------- навигация ---------- */
 function setTab(t) {
   if (t === state.tab && $('#main').innerHTML) return;
   const order = ['home', 'cart', 'info'];
@@ -316,7 +279,7 @@ function closeTop() {
 }
 if (tg && tg.BackButton) tg.BackButton.onClick(closeTop);
 
-/* ---------- ������� ---------- */
+/* ---------- админка ---------- */
 function openAdmin() {
   if (!isAdmin) return;
   state.aTab = 'products'; state.aPid = null; renderAdmin();
@@ -324,24 +287,24 @@ function openAdmin() {
 }
 function renderAdmin() {
   const t = state.aTab;
-  const tabs = [['products', '������'], ['info', 'Info'], ['stats', '����⨪�'], ['data', '�����']];
+  const tabs = [['products', 'Товары'], ['info', 'Info'], ['stats', 'Статистика'], ['data', 'Данные']];
   let body = '';
   if (t === 'products') body = state.aPid ? adminProduct(P(state.aPid)) : adminList();
-  if (t === 'info') body = `<div class="glass box"><div class="field"><label>����� ������� Info</label>
+  if (t === 'info') body = `<div class="glass box"><div class="field"><label>Текст вкладки Info</label>
       <textarea data-root="d" data-k="info" style="min-height:240px">${esc(data.info)}</textarea></div>
-      <p class="note">���࠭���� ��⮬���᪨. ��㡫��� ��������� �� ������� <�����>.</p></div>`;
+      <p class="note">Сохраняется автоматически. Опубликуй изменения во вкладке «Данные».</p></div>`;
   if (t === 'stats') body = adminStats();
   if (t === 'data') body = adminData();
-  $('#admin').innerHTML = `<button class="back glass" data-act="closeAdmin" aria-label="�����"><</button>
-    <div class="apage"><h1 class="h1">�������</h1><div class="stripe"></div>
+  $('#admin').innerHTML = `<button class="back glass" data-act="closeAdmin" aria-label="Назад">‹</button>
+    <div class="apage"><h1 class="h1">Админка</h1><div class="stripe"></div>
     <div class="atabs">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="atab" data-t="${k}">${n}</button>`).join('')}</div>
     ${body}</div>`;
 }
 function adminList() {
   return data.products.map(p => `<button class="glass arow" data-act="aedit" data-id="${esc(p.id)}">
-      <img src="${img(p)}" alt=""><b>${esc(p.name)}</b><span>></span></button>`).join('') +
-    `<div class="btns"><button class="cta sm" data-act="anew">+ �������� ���ࣥ⨪</button>
-     <button class="ghost" data-act="arefresh">�������� �� 業� �� ��뫪��</button></div>
+      <img src="${img(p)}" alt=""><b>${esc(p.name)}</b><span>›</span></button>`).join('') +
+    `<div class="btns"><button class="cta sm" data-act="anew">+ Добавить энергетик</button>
+     <button class="ghost" data-act="arefresh">Обновить все цены по ссылкам</button></div>
      <p class="note" id="rst"></p>`;
 }
 function adminProduct(p) {
@@ -349,72 +312,72 @@ function adminProduct(p) {
   const f = (label, k, val, tag = 'input', extra = '') => `<div class="field"><label>${label}</label>
     <${tag} data-root="p" data-k="${k}" ${tag === 'input' ? `value="${esc(val)}"` : ''} ${extra}>${tag === 'textarea' ? esc(val) + '</textarea>' : ''}${tag === 'input' ? '' : ''}</div>`;
   return `<div class="glass box">
-    <button class="ghost" data-act="aback" style="margin-bottom:12px">< � ᯨ��</button>
-    ${f('��������', 'name', p.name)}${f('������', 'tagline', p.tagline)}
-    ${f('���ᠭ�� ����', 'desc', p.desc, 'textarea')}
-    <div class="field"><label>�ᮡ������ (�� ����� � ��ப�)</label>
+    <button class="ghost" data-act="aback" style="margin-bottom:12px">‹ К списку</button>
+    ${f('Название', 'name', p.name)}${f('Слоган', 'tagline', p.tagline)}
+    ${f('Описание вкуса', 'desc', p.desc, 'textarea')}
+    <div class="field"><label>Особенности (по одной в строке)</label>
       <textarea data-root="p" data-k="facts" data-lines="1">${esc(p.facts.join('\n'))}</textarea></div>
     <div class="two">
-      <div class="field"><label>���� 1</label><input type="color" data-root="p" data-k="theme.c1" value="${esc(p.theme.c1)}"></div>
-      <div class="field"><label>���� 2</label><input type="color" data-root="p" data-k="theme.c2" value="${esc(p.theme.c2)}"></div>
+      <div class="field"><label>Цвет 1</label><input type="color" data-root="p" data-k="theme.c1" value="${esc(p.theme.c1)}"></div>
+      <div class="field"><label>Цвет 2</label><input type="color" data-root="p" data-k="theme.c2" value="${esc(p.theme.c2)}"></div>
     </div>
-    <div class="field"><label>��� �����</label><input type="file" accept="image/*" data-act="photo"></div>
-    ${p.image ? `<button class="ghost" data-act="rmphoto">����� ��</button>` : ''}
+    <div class="field"><label>Фото банки</label><input type="file" accept="image/*" data-act="photo"></div>
+    ${p.image ? `<button class="ghost" data-act="rmphoto">Убрать фото</button>` : ''}
     ${p.variants.map((v, vi) => `
-      <div class="vh"><span>${v.vol} ��</span><button class="ghost danger" data-act="rmvol" data-vi="${vi}">������� ����</button></div>
+      <div class="vh"><span>${v.vol} мл</span><button class="ghost danger" data-act="rmvol" data-vi="${vi}">Удалить объём</button></div>
       ${MPK.map(k => { const o = (v.offers[k] = v.offers[k] || { url: '', price: null }); return `
         <div class="offer"><h4>${MP[k].name}</h4>
-          <div class="field"><label>��뫪� �� ⮢��</label>
+          <div class="field"><label>Ссылка на товар</label>
             <input data-root="p" data-k="variants.${vi}.offers.${k}.url" data-auto="${vi}|${k}" value="${esc(o.url)}" placeholder="https://..."></div>
-          <div class="field"><label>����, ? (����ﭥ��� �� ��뫪� ��� ���� ������)</label>
+          <div class="field"><label>Цена, ₽ (подтянется по ссылке или впиши вручную)</label>
             <input type="number" inputmode="numeric" id="pr-${vi}-${k}" data-root="p" data-num="1" data-k="variants.${vi}.offers.${k}.price" value="${o.price == null ? '' : esc(o.price)}"></div>
-          <button class="ghost" data-act="getprice" data-vi="${vi}" data-k="${k}">���� 業� �� ��뫪�</button>
+          <button class="ghost" data-act="getprice" data-vi="${vi}" data-k="${k}">Найти цену по ссылке</button>
           <div class="st" id="st-${vi}-${k}"></div></div>`; }).join('')}`).join('')}
-    <div class="two" style="margin-top:10px"><div class="field"><label>���� ����, ��</label><input type="number" id="newvol" inputmode="numeric" placeholder="330"></div>
-      <div class="field"><label>&nbsp;</label><button class="cta sm" data-act="addvol">��������</button></div></div>
-    <button class="ghost danger" style="margin-top:14px" data-act="adel">������� ���ࣥ⨪</button></div>`;
+    <div class="two" style="margin-top:10px"><div class="field"><label>Новый объём, мл</label><input type="number" id="newvol" inputmode="numeric" placeholder="330"></div>
+      <div class="field"><label>&nbsp;</label><button class="cta sm" data-act="addvol">Добавить</button></div></div>
+    <button class="ghost danger" style="margin-top:14px" data-act="adel">Удалить энергетик</button></div>`;
 }
 function adminStats() {
   const names = id => (P(id) ? P(id).name : id);
-  const lst = (o) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="stat"><span>${esc(names(k))}</span><b>${v}</b></div>`).join('') || '<p class="note">���� ��� ������</p>';
-  return `<div class="glass box"><h3>������ �ਫ������</h3><div class="stat"><span>�ᥣ�</span><b>${stats.opens || 0}</b></div>
-    <h3 style="margin-top:14px">��ᬮ��� ���ᮢ</h3>${lst(stats.views)}
-    <h3 style="margin-top:14px">���������� � ��২��</h3>${lst(stats.adds)}
-    <h3 style="margin-top:14px">���室� �� ��થ⯫����</h3>${MPK.map(k => `<div class="stat"><span>${MP[k].name}</span><b>${(stats.out || {})[k] || 0}</b></div>`).join('')}
-    <p class="note">����⨪� ��⠥��� �����쭮, � ��㧥� �⮣� ���ன�⢠. ��� �ࢥ� ����� ����⨪� �� �ᥬ ���짮��⥫� ᮡ��� �����.</p>
-    <button class="ghost danger" data-act="resetstats">������ ����⨪�</button></div>`;
+  const lst = (o) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="stat"><span>${esc(names(k))}</span><b>${v}</b></div>`).join('') || '<p class="note">Пока нет данных</p>';
+  return `<div class="glass box"><h3>Открытия приложения</h3><div class="stat"><span>Всего</span><b>${stats.opens || 0}</b></div>
+    <h3 style="margin-top:14px">Просмотры вкусов</h3>${lst(stats.views)}
+    <h3 style="margin-top:14px">Добавления в корзину</h3>${lst(stats.adds)}
+    <h3 style="margin-top:14px">Переходы на маркетплейсы</h3>${MPK.map(k => `<div class="stat"><span>${MP[k].name}</span><b>${(stats.out || {})[k] || 0}</b></div>`).join('')}
+    <p class="note">Статистика считается локально, в браузере этого устройства. Без сервера общую статистику по всем пользователям собрать нельзя.</p>
+    <button class="ghost danger" data-act="resetstats">Сбросить статистику</button></div>`;
 }
 function adminData() {
-  return `<div class="glass box"><h3>�㡫����� ���������</h3>
-    <p class="note">�ࠢ�� ����� ⮫쪮 �� ⢮� ���ன�⢥. �⮡� 㢨���� ��: ����� <�����஢��� JSON>, ��࠭� ��� <b>data.json</b> �冷� � index.html �� ��⨭�� � ��१����.</p>
-    <div class="btns"><button class="cta sm" data-act="copyjson">�����஢��� JSON</button>
-    <button class="ghost" data-act="dljson">������ data.json</button></div>
-    <div class="field" style="margin-top:14px"><label>������: ��⠢� JSON</label><textarea id="imp" placeholder='{"info":"...","products":[...]}'></textarea></div>
-    <div class="btns"><button class="ghost" data-act="imp">�ਬ�����</button>
-    <button class="ghost danger" data-act="resetdraft">������ ��� �ࠢ��</button></div></div>`;
+  return `<div class="glass box"><h3>Публикация изменений</h3>
+    <p class="note">Правки видны только на твоём устройстве. Чтобы увидели все: нажми «Скопировать JSON», сохрани как <b>data.json</b> рядом с index.html на хостинге и перезалей.</p>
+    <div class="btns"><button class="cta sm" data-act="copyjson">Скопировать JSON</button>
+    <button class="ghost" data-act="dljson">Скачать data.json</button></div>
+    <div class="field" style="margin-top:14px"><label>Импорт: вставь JSON</label><textarea id="imp" placeholder='{"info":"...","products":[...]}'></textarea></div>
+    <div class="btns"><button class="ghost" data-act="imp">Применить</button>
+    <button class="ghost danger" data-act="resetdraft">Сбросить мои правки</button></div></div>`;
 }
 async function adminAutoPrice(vi, k, quiet) {
   const p = P(state.aPid); const o = p.variants[vi].offers[k];
   const st = document.getElementById(`st-${vi}-${k}`);
-  if (!o.url) { if (st) st.textContent = '���砫� ��⠢� ��뫪�'; return false; }
-  if (st) st.textContent = '��� 業�:';
+  if (!o.url) { if (st) st.textContent = 'Сначала вставь ссылку'; return false; }
+  if (st) st.textContent = 'Ищу цену…';
   const price = await fetchPrice(o.url);
   if (price) {
     o.price = price; saveDraft();
     const inp = document.getElementById(`pr-${vi}-${k}`); if (inp) inp.value = price;
-    if (st) st.textContent = '���� �������: ' + fmt(price); return true;
+    if (st) st.textContent = 'Цена найдена: ' + fmt(price); return true;
   }
-  if (st) st.textContent = '�� 㤠���� ������ 業� (ᠩ� ������ ��� ��⮬���᪮�� �⥭��). ���� ������.';
+  if (st) st.textContent = 'Не удалось прочитать цену (сайт закрыт для автоматического чтения). Впиши вручную.';
   return false;
 }
 async function refreshAll() {
   const r = $('#rst'); let ok = 0, tot = 0;
   for (const p of data.products) for (const v of p.variants) for (const k of MPK) {
     const o = v.offers[k]; if (!o || !o.url) continue; tot++;
-    if (r) r.textContent = `�������� ${tot}:`;
+    if (r) r.textContent = `Обновляю ${tot}…`;
     const price = await fetchPrice(o.url); if (price) { o.price = price; ok++; }
   }
-  saveDraft(); if (r) r.textContent = tot ? `��⮢�: ��������� ${ok} �� ${tot}` : '��� ⮢�஢ � ��뫪���';
+  saveDraft(); if (r) r.textContent = tot ? `Готово: обновлено ${ok} из ${tot}` : 'Нет товаров со ссылками';
 }
 function resizeImage(file) {
   return new Promise((res, rej) => {
@@ -438,7 +401,7 @@ const download = (name, text) => {
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click();
 };
 
-/* ---------- ᮡ��� ---------- */
+/* ---------- события ---------- */
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act; const d = el.dataset;
@@ -452,9 +415,9 @@ document.addEventListener('click', async e => {
     case 'qty': state.qty = Math.max(1, Math.min(99, state.qty + Number(d.d))); renderDetail(); break;
     case 'add': addToCart(); break;
     case 'cq': { const i = cart[d.i]; const q = i.qty + Number(d.d);
-      if (q < 1) { cart.splice(Number(d.i), 1); toast('������� �� ��২��'); } else i.qty = Math.min(99, q);
+      if (q < 1) { cart.splice(Number(d.i), 1); toast('Удалено из корзины'); } else i.qty = Math.min(99, q);
       save('rb_cart', cart); renderCart(); updateBadge(); break; }
-    case 'rm': cart.splice(Number(d.i), 1); save('rb_cart', cart); renderCart(); updateBadge(); haptic(); toast('������� �� ��২��'); break;
+    case 'rm': cart.splice(Number(d.i), 1); save('rb_cart', cart); renderCart(); updateBadge(); haptic(); toast('Удалено из корзины'); break;
     case 'checkout': checkout(); break;
     case 'go': go($('#modal')._links[Number(d.k)]); break;
     case 'closeModal': $('#modal').hidden = true; break;
@@ -465,31 +428,31 @@ document.addEventListener('click', async e => {
     case 'aback': state.aPid = null; renderAdmin(); break;
     case 'anew': {
       const id = 'p' + Date.now().toString(36);
-      data.products.push({ id, name: '���� ����', tagline: '', desc: '', facts: [], theme: { c1: '#db0a40', c2: '#001e62' }, image: null,
+      data.products.push({ id, name: 'Новый вкус', tagline: '', desc: '', facts: [], theme: { c1: '#db0a40', c2: '#001e62' }, image: null,
         variants: [250, 355, 473].map(vol => ({ vol, offers: { ozon: { url: '', price: null }, wb: { url: '', price: null }, ym: { url: '', price: null } } })) });
       saveDraft(); state.aPid = id; renderAdmin(); break; }
-    case 'adel': if (confirm('������� ��� ���ࣥ⨪?')) { data.products = data.products.filter(p => p.id !== state.aPid); state.aPid = null; saveDraft(); renderAdmin(); } break;
+    case 'adel': if (confirm('Удалить этот энергетик?')) { data.products = data.products.filter(p => p.id !== state.aPid); state.aPid = null; saveDraft(); renderAdmin(); } break;
     case 'addvol': {
       const v = Number($('#newvol').value); const p = ap();
-      if (!v || p.variants.some(x => x.vol === v)) { toast('����� ���� ����'); break; }
+      if (!v || p.variants.some(x => x.vol === v)) { toast('Укажи новый объём'); break; }
       p.variants.push({ vol: v, offers: { ozon: { url: '', price: null }, wb: { url: '', price: null }, ym: { url: '', price: null } } });
       p.variants.sort((x, y) => x.vol - y.vol); saveDraft(); renderAdmin(); break; }
     case 'rmvol': ap().variants.splice(Number(d.vi), 1); saveDraft(); renderAdmin(); break;
     case 'rmphoto': ap().image = null; saveDraft(); renderAdmin(); break;
     case 'getprice': await adminAutoPrice(Number(d.vi), d.k); break;
     case 'arefresh': await refreshAll(); renderAdmin(); break;
-    case 'resetstats': if (confirm('������ ����⨪�?')) { stats = { opens: 0, views: {}, adds: {}, out: { ozon: 0, wb: 0, ym: 0 } }; save('rb_stats', stats); renderAdmin(); } break;
+    case 'resetstats': if (confirm('Сбросить статистику?')) { stats = { opens: 0, views: {}, adds: {}, out: { ozon: 0, wb: 0, ym: 0 } }; save('rb_stats', stats); renderAdmin(); } break;
     case 'copyjson': {
       const txt = JSON.stringify(data, null, 2);
-      try { await navigator.clipboard.writeText(txt); toast('JSON ᪮��஢��'); } catch (err) { download('data.json', txt); }
+      try { await navigator.clipboard.writeText(txt); toast('JSON скопирован'); } catch (err) { download('data.json', txt); }
       break; }
     case 'dljson': download('data.json', JSON.stringify(data, null, 2)); break;
     case 'imp': {
-      try { const j = JSON.parse($('#imp').value); if (!Array.isArray(j.products)) throw 0; data = j; saveDraft(); toast('������஢���'); renderAdmin(); }
-      catch (err) { toast('������ JSON'); }
+      try { const j = JSON.parse($('#imp').value); if (!Array.isArray(j.products)) throw 0; data = j; saveDraft(); toast('Импортировано'); renderAdmin(); }
+      catch (err) { toast('Неверный JSON'); }
       break; }
-    case 'resetdraft': if (confirm('������ ������� �ࠢ��?')) { localStorage.removeItem('rb_draft'); location.reload(); } break;
-    case 'copyid': try { await navigator.clipboard.writeText(String(uid)); toast('ID ᪮��஢��'); } catch (err) { toast(String(uid)); } break;
+    case 'resetdraft': if (confirm('Сбросить локальные правки?')) { localStorage.removeItem('rb_draft'); location.reload(); } break;
+    case 'copyid': try { await navigator.clipboard.writeText(String(uid)); toast('ID скопирован'); } catch (err) { toast(String(uid)); } break;
   }
 });
 
@@ -502,26 +465,26 @@ document.addEventListener('input', e => {
   if (el.dataset.num) v = v === '' ? null : Number(v);
   setPath(root, el.dataset.k, v); saveDraft();
 });
-// ���-��������� 業� �ࠧ� ��᫥ ��⠢�� ��뫪�
+// авто-подтягивание цены сразу после вставки ссылки
 document.addEventListener('change', async e => {
   const el = e.target;
   if (el.dataset && el.dataset.auto) {
     const [vi, k] = el.dataset.auto.split('|'); await adminAutoPrice(Number(vi), k);
   }
   if (el.dataset && el.dataset.act === 'photo' && el.files[0]) {
-    try { const p = P(state.aPid); p.image = await resizeImage(el.files[0]); if (saveDraft()) { renderAdmin(); toast('��� ����㦥��'); } }
-    catch (err) { toast('�� 㤠���� ����㧨�� ��'); }
+    try { const p = P(state.aPid); p.image = await resizeImage(el.files[0]); if (saveDraft()) { renderAdmin(); toast('Фото загружено'); } }
+    catch (err) { toast('Не удалось загрузить фото'); }
   }
 });
 
-/* ---------- ���� ---------- */
+/* ---------- старт ---------- */
 if (CFG.SHOW_ID_BANNER) {
   const b = $('#idbanner'); b.hidden = false;
   b.innerHTML = uid
-    ? `���� Telegram ID: <b>${uid}</b><button data-act="copyid">����஢���</button>`
-    : '��ன �ਫ������ ����� Telegram, �⮡� 㢨���� ID';
+    ? `Твой Telegram ID: <b>${uid}</b><button data-act="copyid">Копировать</button>`
+    : 'Открой приложение внутри Telegram, чтобы увидеть ID';
 }
-/* ---------- �����-䮭 ---------- */
+/* ---------- видео-фон ---------- */
 (function initBg() {
   const v = $('#bgvid'), bg = $('.bg');
   const list = (CFG.BG_VIDEOS || []).slice();
@@ -547,4 +510,3 @@ if (CFG.SHOW_ID_BANNER) {
 
 updateBadge(); renderTab();
 })();
-
