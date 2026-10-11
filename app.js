@@ -59,17 +59,25 @@ const state = { tab: 'home', pid: null, vol: null, mp: 'ozon', qty: 1, aTab: 'pr
 const P = id => data.products.find(p => p.id === id);
 
 function canSvg(p) {
-  const c1 = p.theme.c1, c2 = p.theme.c2;
+  const c1 = esc(p.theme.c1), c2 = esc(p.theme.c2);
   const t = esc(String(p.name).split(' ')[0].toUpperCase().slice(0, 10));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 220"><defs>
-<linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#9aa3af"/><stop offset=".5" stop-color="#f1f3f6"/><stop offset="1" stop-color="#8a93a0"/></linearGradient>
-<linearGradient id="b" x1="0" x2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
-<rect x="24" y="12" width="72" height="12" rx="4" fill="url(#g)"/>
-<path d="M26 24h68l6 22v128l-6 22H26l-6-22V46z" fill="url(#b)"/>
-<path d="M20 62 100 102v34L20 96z" fill="#fff" opacity=".18"/>
-<rect x="27" y="26" width="9" height="166" fill="#fff" opacity=".25"/>
-<rect x="24" y="196" width="72" height="10" rx="4" fill="url(#g)"/>
-<text x="60" y="128" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-style="italic" font-size="13" fill="#fff">${t}</text></svg>`;
+  const fs = t.length > 8 ? 10 : t.length > 6 ? 12 : 14;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 260"><defs>
+<linearGradient id="m" x1="0" x2="1"><stop offset="0" stop-color="#7d8794"/><stop offset=".35" stop-color="#f4f6f9"/><stop offset=".65" stop-color="#b9c0ca"/><stop offset="1" stop-color="#6b7480"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>
+<linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".18" stop-color="#000" stop-opacity=".05"/><stop offset=".3" stop-color="#fff" stop-opacity=".5"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/><stop offset=".78" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
+<clipPath id="c"><path d="M34 52Q34 36 48 30h44q14 6 14 22v158q0 14-14 20H48q-14-6-14-20z"/></clipPath></defs>
+<ellipse cx="70" cy="246" rx="44" ry="7" fill="#000" opacity=".28"/>
+<path d="M36 48Q36 36 50 30h40q14 6 14 18v8H36z" fill="url(#m)"/>
+<ellipse cx="70" cy="30" rx="22" ry="5" fill="url(#m)"/><ellipse cx="70" cy="30" rx="17" ry="3.4" fill="#59616c"/>
+<rect x="63" y="27.5" width="14" height="5" rx="2.5" fill="#d9dee5"/>
+<g clip-path="url(#c)"><rect x="30" y="30" width="80" height="200" fill="url(#b)"/>
+<path d="M30 92 110 130v40L30 132z" fill="#fff" opacity=".2"/>
+<path d="M30 150 110 188v14L30 164z" fill="#000" opacity=".16"/>
+<rect x="30" y="30" width="80" height="200" fill="url(#s)"/></g>
+<path d="M34 214q0 14 14 20h44q14-6 14-20v8q0 12-14 18H48q-14-6-14-18z" fill="url(#m)"/>
+<text x="70" y="124" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-style="italic" font-size="${fs}" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width=".6" letter-spacing=".4">${t}</text>
+<text x="70" y="142" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="7" fill="#fff" opacity=".85" letter-spacing="1.5">ENERGY DRINK</text></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 const img = p => p.image || canSvg(p);
@@ -123,7 +131,7 @@ async function fetchPrice(url) {
 /* ---------- главная ---------- */
 function renderHome() {
   $('#main').innerHTML = `
-    <h1 class="h1">Red<b>Bull</b></h1><div class="stripe"></div>
+    <h1 class="h1">Red Bull</h1><div class="stripe"></div>
     <p class="sub">Выбери вкус — покажем описание и цены на маркетплейсах</p>
     <div class="grid">${data.products.map(p => `
       <button class="card" style="${themeStyle(p)}" data-act="open" data-id="${esc(p.id)}">
@@ -190,7 +198,7 @@ function updateBadge() {
 function renderCart() {
   cart = cart.filter(i => P(i.pid) && variant(P(i.pid), i.vol));
   if (!cart.length) {
-    $('#main').innerHTML = `<h1 class="h1">Кор<b>зина</b></h1><div class="stripe"></div>
+    $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>
       <div class="empty"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 1.9-1.4L21 8H6.2"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
       <p>Пока пусто.<br>Добавь энергетик на главной.</p></div>`;
     return;
@@ -205,9 +213,9 @@ function renderCart() {
         <span class="tag" style="background:${MP[i.mp].color}">${MP[i.mp].name}</span></div>
       <div class="rt"><div class="qty"><button data-act="cq" data-i="${idx}" data-d="-1">−</button><span>${i.qty}</span><button data-act="cq" data-i="${idx}" data-d="1">+</button></div>
         <b>${pr == null ? 'цена на сайте' : fmt(pr * i.qty)}</b>
-        <button class="x" data-act="rm" data-i="${idx}">Удалить</button></div></div>`;
+        <button class="x" data-act="rm" data-i="${idx}" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>`;
   }).join('');
-  $('#main').innerHTML = `<h1 class="h1">Кор<b>зина</b></h1><div class="stripe"></div>${rows}
+  $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>${rows}
     <div class="glass total"><span>Итого${unknown ? ' (без позиций без цены)' : ''}</span><b>${fmt(total) || '0 ₽'}</b></div>
     <button class="cta red" style="width:100%" data-act="checkout">Заказать</button>`;
 }
@@ -232,7 +240,7 @@ function go(l) {
 
 /* ---------- Info ---------- */
 function renderInfo() {
-  $('#main').innerHTML = `<h1 class="h1">In<b>fo</b></h1><div class="stripe"></div>
+  $('#main').innerHTML = `<h1 class="h1">Info</h1><div class="stripe"></div>
     <div class="glass box"><div class="info-text">${esc(data.info || 'О проекте')}</div></div>
     ${isAdmin ? `<button class="cta red" style="width:100%;margin-top:16px" data-act="openAdmin">Админ-панель</button>` : ''}`;
 }
@@ -288,7 +296,7 @@ function renderAdmin() {
   if (t === 'stats') body = adminStats();
   if (t === 'data') body = adminData();
   $('#admin').innerHTML = `<button class="back glass" data-act="closeAdmin" aria-label="Назад">‹</button>
-    <div class="apage"><h1 class="h1">Ад<b>минка</b></h1><div class="stripe"></div>
+    <div class="apage"><h1 class="h1">Админка</h1><div class="stripe"></div>
     <div class="atabs">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="atab" data-t="${k}">${n}</button>`).join('')}</div>
     ${body}</div>`;
 }
@@ -406,8 +414,10 @@ document.addEventListener('click', async e => {
     case 'mp': state.mp = d.m; renderDetail(); break;
     case 'qty': state.qty = Math.max(1, Math.min(99, state.qty + Number(d.d))); renderDetail(); break;
     case 'add': addToCart(); break;
-    case 'cq': { const i = cart[d.i]; i.qty = Math.max(1, Math.min(99, i.qty + Number(d.d))); save('rb_cart', cart); renderCart(); break; }
-    case 'rm': cart.splice(Number(d.i), 1); save('rb_cart', cart); renderCart(); updateBadge(); break;
+    case 'cq': { const i = cart[d.i]; const q = i.qty + Number(d.d);
+      if (q < 1) { cart.splice(Number(d.i), 1); toast('Удалено из корзины'); } else i.qty = Math.min(99, q);
+      save('rb_cart', cart); renderCart(); updateBadge(); break; }
+    case 'rm': cart.splice(Number(d.i), 1); save('rb_cart', cart); renderCart(); updateBadge(); haptic(); toast('Удалено из корзины'); break;
     case 'checkout': checkout(); break;
     case 'go': go($('#modal')._links[Number(d.k)]); break;
     case 'closeModal': $('#modal').hidden = true; break;
@@ -474,5 +484,28 @@ if (CFG.SHOW_ID_BANNER) {
     ? `Твой Telegram ID: <b>${uid}</b><button data-act="copyid">Копировать</button>`
     : 'Открой приложение внутри Telegram, чтобы увидеть ID';
 }
+/* ---------- видео-фон ---------- */
+(function initBg() {
+  const v = $('#bgvid'), bg = $('.bg');
+  const list = (CFG.BG_VIDEOS || []).slice();
+  const conn = navigator.connection;
+  if (!v || !list.length || (conn && conn.saveData) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  v.muted = true; v.defaultMuted = true; v.playsInline = true; v.setAttribute('webkit-playsinline', '');
+  let i = -1, fails = 0;
+  const play = () => { const r = v.play(); if (r && r.catch) r.catch(() => {}); };
+  const next = () => {
+    if (fails >= list.length) { v.classList.remove('on'); bg.classList.remove('vid'); return; }
+    i = (i + 1) % list.length;
+    v.classList.remove('on');
+    setTimeout(() => { v.src = list[i]; v.load(); play(); }, v.getAttribute('src') ? 700 : 0);
+  };
+  v.addEventListener('playing', () => { fails = 0; v.classList.add('on'); bg.classList.add('vid'); });
+  v.addEventListener('error', () => { fails++; next(); });
+  v.addEventListener('ended', next);
+  document.addEventListener('visibilitychange', () => { document.hidden ? v.pause() : v.getAttribute('src') && play(); });
+  document.addEventListener('touchstart', () => { if (v.paused && v.getAttribute('src')) play(); }, { once: true, passive: true });
+  next();
+})();
+
 updateBadge(); renderTab();
 })();

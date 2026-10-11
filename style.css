@@ -2,9 +2,11 @@
   --navy:#001e62;--red:#db0a40;--yellow:#ffc906;--silver:#d5dae3;
   --c1:#db0a40;--c2:#001e62;
   --ease:cubic-bezier(.2,.9,.25,1.08);
+  --calm:cubic-bezier(.32,.72,.24,1);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:#001440;color:#fff;overflow:hidden;
+html{background:#001440}
+html,body{margin:0;height:100%;color:#fff;overflow:hidden;
   font-family:-apple-system,"SF Pro Display",Inter,Roboto,system-ui,sans-serif}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
 input,textarea{font:inherit;color:#fff}
@@ -13,8 +15,23 @@ input,textarea{font:inherit;color:#fff}
     radial-gradient(120% 60% at 85% -10%,#1d49c4 0,transparent 60%),
     radial-gradient(90% 50% at -10% 65%,rgba(219,10,64,.45),transparent 60%),
     linear-gradient(180deg,#001e62,#000d33)}
+.bg::before{content:"";position:absolute;inset:-30%;
+  background:radial-gradient(40% 30% at 70% 30%,rgba(255,201,6,.16),transparent 70%),
+             radial-gradient(45% 35% at 20% 75%,rgba(219,10,64,.28),transparent 70%);
+  animation:glow 14s ease-in-out infinite alternate}
 .bg::after{content:"";position:absolute;inset:-20%;
-  background:repeating-linear-gradient(115deg,transparent 0 58px,rgba(255,255,255,.04) 58px 60px)}
+  background:repeating-linear-gradient(115deg,transparent 0 58px,rgba(255,255,255,.05) 58px 60px);
+  animation:drift 6s linear infinite}
+@keyframes drift{to{transform:translateX(-66.2px)}}
+@keyframes glow{to{transform:translate(6%,-4%) scale(1.15)}}
+/* видео-фон: включается сам, если рядом лежат клипы из CFG.BG_VIDEOS */
+.bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;
+  transition:opacity .8s ease;z-index:1}
+.bg video.on{opacity:1}
+.bg .shade{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;transition:opacity .8s ease;
+  background:linear-gradient(180deg,rgba(0,14,51,.5),rgba(0,14,51,.3) 40%,rgba(0,8,34,.78))}
+.bg.vid .shade{opacity:1}
+@media (prefers-reduced-motion:reduce){.bg::before,.bg::after{animation:none}}
 
 /* ---------- Liquid Glass ---------- */
 .glass{
@@ -32,7 +49,8 @@ main.enter>*{animation:rise .55s var(--ease) both}
 
 .h1{font-style:italic;font-weight:900;text-transform:uppercase;letter-spacing:-.02em;
   font-size:32px;line-height:1;margin:6px 0 4px}
-.h1 b{color:var(--yellow)}
+.h1,.h1 b{color:var(--red)}
+.h1{text-shadow:0 0 22px rgba(219,10,64,.45),0 2px 0 rgba(255,255,255,.12)}
 .stripe{height:5px;width:86px;margin:8px 0 18px;transform:skewX(-25deg);
   background:linear-gradient(90deg,var(--red) 0 50%,var(--yellow) 50%)}
 .sub{opacity:.7;font-size:14px;margin:0 0 16px}
@@ -58,13 +76,13 @@ main.enter>*{animation:rise .55s var(--ease) both}
 .tabbar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
   transform:translateX(-50%);width:min(92vw,400px);height:70px;border-radius:36px;padding:6px;
   display:grid;grid-template-columns:repeat(3,1fr);z-index:40;
-  transition:transform .55s var(--ease)}
+  transition:transform .5s var(--calm)}
 body.sheet-open .tabbar{transform:translate(-50%,180%)}
 .tabbar button{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;font-size:11px;font-weight:700;opacity:.65;
-  transition:opacity .3s,transform .4s var(--ease)}
+  transition:opacity .35s ease,transform .3s var(--calm)}
 .tabbar button.on{opacity:1}
-.tabbar button:active{transform:scale(.92)}
+.tabbar button:active{transform:scale(.97)}
 .tabbar svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tabbar button.on svg{stroke:var(--yellow)}
 .tabbar button:first-child svg{fill:none}
@@ -74,10 +92,7 @@ body.sheet-open .tabbar{transform:translate(-50%,180%)}
   border:1px solid rgba(255,255,255,.45);
   box-shadow:inset 0 1.5px 0 rgba(255,255,255,.7),0 4px 14px rgba(0,0,0,.3);
   transform:translateX(calc(var(--i) * 100%));
-  transition:transform .55s var(--ease)}
-.pill.move{animation:squish .55s var(--ease)}
-@keyframes squish{
-  0%{scale:1 1}30%{scale:1.22 .9}65%{scale:.96 1.05}100%{scale:1 1}}
+  transition:transform .45s var(--calm)}
 .badge{position:absolute;top:6px;right:calc(50% - 26px);min-width:18px;height:18px;border-radius:9px;
   background:var(--red);font-style:normal;font-size:11px;line-height:18px;text-align:center;padding:0 4px;
   box-shadow:0 2px 8px rgba(219,10,64,.6)}
@@ -145,7 +160,10 @@ body.sheet-open .tabbar{transform:translate(-50%,180%)}
 .item .mid small{opacity:.7}
 .tag{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;color:#fff}
 .item .rt{text-align:right}
-.item .rt .x{font-size:12px;opacity:.6;margin-top:6px;display:block;margin-left:auto}
+.item .rt .x{width:38px;height:38px;border-radius:19px;display:grid;place-items:center;margin:8px 0 0 auto;
+  background:rgba(219,10,64,.35);border:1px solid rgba(255,255,255,.3);transition:transform .25s var(--calm)}
+.item .rt .x:active{transform:scale(.92)}
+.item .rt .x svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .total{display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:24px;margin:6px 0 14px;font-weight:800}
 .total b{font-size:22px}
 .empty{text-align:center;opacity:.7;margin-top:60px}
@@ -156,6 +174,7 @@ body.sheet-open .tabbar{transform:translate(-50%,180%)}
 .idbanner{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);
   z-index:60;border-radius:20px;padding:8px 12px;font-size:12px;display:flex;gap:10px;align-items:center;
   max-width:92vw;white-space:nowrap}
+.idbanner[hidden]{display:none}
 .idbanner b{font-size:14px;color:var(--yellow)}
 .idbanner button{padding:4px 10px;border-radius:12px;background:rgba(255,255,255,.2);font-weight:700}
 .modal{position:fixed;inset:0;z-index:70;background:rgba(0,8,40,.55);
