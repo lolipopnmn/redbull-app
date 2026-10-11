@@ -492,6 +492,7 @@ if (CFG.SHOW_ID_BANNER) {
   if (!v || !list.length || (conn && conn.saveData) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   v.muted = true; v.defaultMuted = true; v.playsInline = true; v.setAttribute('webkit-playsinline', '');
   let i = -1, fails = 0;
+  v.loop = list.length === 1;
   const play = () => { const r = v.play(); if (r && r.catch) r.catch(() => {}); };
   const next = () => {
     if (fails >= list.length) { v.classList.remove('on'); bg.classList.remove('vid'); return; }
