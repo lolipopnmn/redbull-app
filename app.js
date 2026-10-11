@@ -55,7 +55,7 @@ const stat = (a, b) => {
 };
 stat('opens');
 
-const state = { tab: 'home', pid: null, vol: null, mp: 'ozon', qty: 1, aTab: 'products', aPid: null };
+const state = { hi: 0, tab: 'home', pid: null, vol: null, mp: 'ozon', qty: 1, aTab: 'products', aPid: null };
 const P = id => data.products.find(p => p.id === id);
 
 function canSvg(p) {
@@ -128,17 +128,63 @@ async function fetchPrice(url) {
   return null;
 }
 
-/* ---------- главная ---------- */
+/* ---------- тема вкуса ---------- */
+const hex2rgb = h => { h = String(h || '#000').replace('#', ''); if (h.length === 3) h = h.split('').map(x => x + x).join(''); const n = parseInt(h, 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const mix = (a, b, k) => { const x = hex2rgb(a), y = hex2rgb(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, '0')).join(''); };
+function setTheme(p) {
+  const r = document.documentElement.style;
+  const c1 = p ? p.theme.c1 : '#db0a40', c2 = p ? p.theme.c2 : '#0a2a86';
+  r.setProperty('--c1', c1); r.setProperty('--c2', c2);
+  r.setProperty('--d1', mix(c1, '#0a0714', .7)); r.setProperty('--d2', mix(c2, '#060a22', .8));
+}
+const ruPlural = (n, f) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? f[2] : b > 1 && b < 5 ? f[1] : b === 1 ? f[0] : f[2]; };
+const shortName = p => String(p.name).split(' ')[0];
+const giantFs = (name, vw) => Math.max(46, Math.min(150, Math.round(vw * 1.1 / (name.length * 0.86))));
+const canH = vol => Math.round(30 + Number(vol) / 473 * 52);
+function fromPrice(p) {
+  let m = null;
+  p.variants.forEach(v => MPK.forEach(k => { const x = offer(p, v.vol, k).price; if (x != null && x !== '' && (m == null || Number(x) < m)) m = Number(x); }));
+  return m;
+}
+
+/* ---------- главная: вкус на весь экран ---------- */
 function renderHome() {
+  const vw = Math.min(window.innerWidth || 390, 520);
   $('#main').innerHTML = `
-    <h1 class="h1">Red Bull</h1><div class="stripe"></div>
-    <p class="sub">Выбери вкус — покажем описание и цены на маркетплейсах</p>
-    <div class="grid">${data.products.map(p => `
-      <button class="card" style="${themeStyle(p)}" data-act="open" data-id="${esc(p.id)}">
-        <img src="${img(p)}" alt="${esc(p.name)}">
-        <div class="n">${esc(p.name)}</div><div class="t">${esc(p.tagline)}</div>
-      </button>`).join('')}
+    <div class="home">
+      <div class="hdr"><span class="logo">Red Bull</span><span class="count">${data.products.length} ${ruPlural(data.products.length, ['вкус', 'вкуса', 'вкусов'])}</span></div>
+      <div class="pager" id="pager">${data.products.map(p => {
+        const nm = shortName(p).toUpperCase(); const from = fromPrice(p);
+        return `<article class="slide" style="--s1:${esc(p.theme.c1)}">
+          <div class="giant" style="--fs:${giantFs(nm, vw)}px" aria-hidden="true">${esc(nm)}</div>
+          <div class="stage"><img src="${img(p)}" alt="${esc(p.name)}"></div>
+          <div class="copy"><h2 class="pname">${esc(p.name)}</h2><p class="ptag">${esc(p.tagline)}</p>
+            <div class="prow"><button class="cta go" data-act="open" data-id="${esc(p.id)}">Подробнее</button>${from ? `<span class="from">от ${fmt(from)}</span>` : ''}</div></div>
+        </article>`; }).join('')}</div>
+      <div class="rail" id="rail">${data.products.map((p, i) => `<button data-i="${i}" aria-label="${esc(p.name)}"><img src="${img(p)}" alt=""></button>`).join('')}</div>
     </div>`;
+  initPager();
+}
+function initPager() {
+  const pg = $('#pager'); if (!pg) return;
+  const slides = [...pg.children]; const rail = [...document.querySelectorAll('#rail button')]; const rl = $('#rail');
+  let cur = -1, raf = 0;
+  const apply = idx => {
+    if (idx === cur || !slides[idx]) return;
+    const first = cur === -1; cur = idx; state.hi = idx; setTheme(data.products[idx]);
+    rail.forEach((b, j) => b.classList.toggle('on', j === idx));
+    const b = rail[idx]; if (b) rl.scrollTo({ left: b.offsetLeft - (rl.clientWidth - b.offsetWidth) / 2, behavior: first ? 'auto' : 'smooth' });
+    if (!first) haptic();
+  };
+  const update = () => {
+    raf = 0; const w = pg.clientWidth || 1; const x = pg.scrollLeft;
+    slides.forEach((s, i) => s.style.setProperty('--o', ((i * w - x) / w).toFixed(3)));
+    apply(Math.max(0, Math.min(slides.length - 1, Math.round(x / w))));
+  };
+  pg.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(update); }, { passive: true });
+  rail.forEach((b, i) => b.addEventListener('click', () => pg.scrollTo({ left: i * pg.clientWidth, behavior: 'smooth' })));
+  pg.scrollLeft = state.hi * pg.clientWidth;
+  update();
 }
 
 /* ---------- карточка товара ---------- */
@@ -148,6 +194,7 @@ function openDetail(id) {
   state.vol = p.variants.length ? p.variants[0].vol : null;
   state.mp = 'ozon';
   stat('views', id);
+  setTheme(p);
   renderDetail();
   $('#detail').scrollTop = 0;
   setSheet('detail', true);
@@ -155,32 +202,51 @@ function openDetail(id) {
 function minPrice(p, vol, mp) { const pr = offer(p, vol, mp).price; return pr == null || pr === '' ? null : Number(pr); }
 function renderDetail() {
   const p = P(state.pid); if (!p) return;
-  const el = $('#detail'); el.style.cssText = themeStyle(p);
+  const el = $('#detail');
+  const known = MPK.map(k => minPrice(p, state.vol, k)).filter(x => x != null);
+  const best = known.length > 1 ? Math.min(...known) : null;
   const cur = minPrice(p, state.vol, state.mp);
+  const nm = shortName(p).toUpperCase(); const vw = Math.min(window.innerWidth || 390, 520);
   el.innerHTML = `
-    <div class="dhero">
+    <div class="dhero" id="dhero">
       <button class="back glass" data-act="closeDetail" aria-label="Назад">‹</button>
-      <img class="dcan" src="${img(p)}" alt="${esc(p.name)}">
-      <h2>${esc(p.name)}</h2><p>${esc(p.tagline)}</p>
+      <div class="giant" style="--fs:${giantFs(nm, vw)}px" aria-hidden="true">${esc(nm)}</div>
+      <div class="dglow"></div>
+      <img class="dcan" id="dcan" src="${img(p)}" alt="${esc(p.name)}">
     </div>
+    <div class="dtitle"><h2>${esc(p.name)}</h2><p>${esc(p.tagline)}</p></div>
     <div class="dbody">
-      <div class="glass box"><h3>О вкусе</h3><p>${esc(p.desc)}</p>
-        <div class="chips">${p.facts.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div></div>
-      <div class="glass box"><h3>Объём</h3>
-        <div class="seg">${p.variants.map(v => `<button class="${v.vol === state.vol ? 'on' : ''}" data-act="vol" data-v="${v.vol}">${v.vol} мл</button>`).join('')}</div></div>
-      <div class="glass box"><h3>Где купить</h3>
-        <div class="mps">${MPK.map(k => {
+      <section class="sec"><h3>О вкусе</h3><p class="lead">${esc(p.desc)}</p>
+        <ul class="facts">${p.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>
+      <section class="sec"><h3>Объём</h3>
+        <div class="vols">${p.variants.map(v => `<button class="vol ${v.vol === state.vol ? 'on' : ''}" data-act="vol" data-v="${v.vol}"><img src="${img(p)}" style="height:${canH(v.vol)}px" alt=""><span>${v.vol} мл</span></button>`).join('')}</div></section>
+      <section class="sec"><h3>Где купить</h3>
+        <div class="shops">${MPK.map(k => {
           const o = offer(p, state.vol, k); const pr = fmt(o.price);
-          return `<button class="mp ${state.mp === k ? 'on' : ''}" data-act="mp" data-m="${k}">
-            <span class="dot" style="background:${MP[k].color}"></span>
-            <span class="nm">${MP[k].name}<small>${o.url ? 'прямая ссылка' : 'поиск по маркетплейсу'}</small></span>
+          const isBest = best != null && o.price != null && o.price !== '' && Number(o.price) === best;
+          return `<button class="shop ${state.mp === k ? 'on' : ''}" data-act="mp" data-m="${k}">
+            <span class="radio"></span>
+            <span class="nm"><span class="n"><i style="background:${MP[k].color}"></i>${MP[k].name}${isBest ? '<em class="best">Дешевле всего</em>' : ''}</span><small>${o.url ? 'ссылка на товар' : 'откроется поиск'}</small></span>
             <span class="pr ${pr ? '' : 'none'}">${pr || 'цена на сайте'}</span></button>`;
-        }).join('')}</div></div>
+        }).join('')}</div></section>
     </div>
     <div class="buybar glass">
-      <div class="qty"><button data-act="qty" data-d="-1">−</button><span>${state.qty}</span><button data-act="qty" data-d="1">+</button></div>
+      <div class="qty"><button data-act="qty" data-d="-1" aria-label="Меньше">−</button><span>${state.qty}</span><button data-act="qty" data-d="1" aria-label="Больше">+</button></div>
       <button class="cta" data-act="add">В корзину${cur ? ' · ' + fmt(cur * state.qty) : ''}</button>
     </div>`;
+  attachTilt($('#dhero'), $('#dcan'));
+}
+function attachTilt(stage, can) {
+  if (!stage || !can || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const set = (rx, ry) => { can.style.setProperty('--rx', rx + 'deg'); can.style.setProperty('--ry', ry + 'deg'); };
+  const move = e => {
+    const r = stage.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+    can.classList.add('drag'); set((-y * 16).toFixed(1), (x * 36).toFixed(1));
+  };
+  const end = () => { can.classList.remove('drag'); set(0, 0); };
+  stage.addEventListener('pointerdown', move); stage.addEventListener('pointermove', move);
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => stage.addEventListener(t, end));
 }
 function addToCart() {
   const p = P(state.pid); if (!p || state.vol == null) return;
@@ -198,26 +264,31 @@ function updateBadge() {
 function renderCart() {
   cart = cart.filter(i => P(i.pid) && variant(P(i.pid), i.vol));
   if (!cart.length) {
-    $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>
-      <div class="empty"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 1.9-1.4L21 8H6.2"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
-      <p>Пока пусто.<br>Добавь энергетик на главной.</p></div>`;
+    $('#main').innerHTML = `<div class="page"><h1 class="h1">Корзина</h1>
+      <div class="empty"><p>Здесь пока пусто. Выбери вкус на главной и добавь его в корзину.</p>
+      <button class="cta" data-act="tab" data-tab="home">К вкусам</button></div></div>`;
     return;
   }
+  const groups = {}; cart.forEach((i, idx) => (groups[i.mp] = groups[i.mp] || []).push({ i, idx }));
   let total = 0, unknown = false;
-  const rows = cart.map((i, idx) => {
-    const p = P(i.pid); const pr = minPrice(p, i.vol, i.mp);
-    if (pr == null) unknown = true; else total += pr * i.qty;
-    return `<div class="glass item">
-      <div class="th" style="${themeStyle(p)}"><img src="${img(p)}" alt=""></div>
-      <div class="mid"><b>${esc(p.name)}</b><small>${i.vol} мл</small><br>
-        <span class="tag" style="background:${MP[i.mp].color}">${MP[i.mp].name}</span></div>
-      <div class="rt"><div class="qty"><button data-act="cq" data-i="${idx}" data-d="-1">−</button><span>${i.qty}</span><button data-act="cq" data-i="${idx}" data-d="1">+</button></div>
-        <b>${pr == null ? 'цена на сайте' : fmt(pr * i.qty)}</b>
-        <button class="x" data-act="rm" data-i="${idx}" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>`;
+  const html = MPK.filter(k => groups[k]).map(k => {
+    let sub = 0;
+    const rows = groups[k].map(({ i, idx }) => {
+      const p = P(i.pid); const pr = minPrice(p, i.vol, i.mp);
+      if (pr == null) unknown = true; else { total += pr * i.qty; sub += pr * i.qty; }
+      return `<div class="line" style="${themeStyle(p)}">
+        <div class="th"><img src="${img(p)}" alt=""></div>
+        <div class="lm"><b>${esc(p.name)}</b><small>${i.vol} мл</small>
+          <div class="qty"><button data-act="cq" data-i="${idx}" data-d="-1" aria-label="Меньше">−</button><span>${i.qty}</span><button data-act="cq" data-i="${idx}" data-d="1" aria-label="Больше">+</button></div></div>
+        <div class="lr"><span class="lp">${pr == null ? 'цена на сайте' : fmt(pr * i.qty)}</span>
+          <button class="x" data-act="rm" data-i="${idx}" aria-label="Удалить"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div></div>`;
+    }).join('');
+    return `<section class="group"><div class="ghead"><i style="background:${MP[k].color}"></i><b>${MP[k].name}</b><span>${sub ? fmt(sub) : ''}</span></div>${rows}</section>`;
   }).join('');
-  $('#main').innerHTML = `<h1 class="h1">Корзина</h1><div class="stripe"></div>${rows}
-    <div class="glass total"><span>Итого${unknown ? ' (без позиций без цены)' : ''}</span><b>${fmt(total) || '0 ₽'}</b></div>
-    <button class="cta red" style="width:100%" data-act="checkout">Заказать</button>`;
+  $('#main').innerHTML = `<div class="page"><h1 class="h1">Корзина</h1>${html}
+    <div class="sum glass"><div class="srow"><span>Итого</span><b>${total ? fmt(total) : '—'}</b></div>
+      ${unknown ? `<p class="snote">${total ? 'Цену части товаров смотри на сайте магазина.' : 'Цены откроются на сайте магазина.'}</p>` : ''}
+      <button class="cta red" data-act="checkout">Заказать</button></div></div>`;
 }
 function checkout() {
   if (!cart.length) return;
@@ -240,9 +311,9 @@ function go(l) {
 
 /* ---------- Info ---------- */
 function renderInfo() {
-  $('#main').innerHTML = `<h1 class="h1">Info</h1><div class="stripe"></div>
-    <div class="glass box"><div class="info-text">${esc(data.info || 'О проекте')}</div></div>
-    ${isAdmin ? `<button class="cta red" style="width:100%;margin-top:16px" data-act="openAdmin">Админ-панель</button>` : ''}`;
+  $('#main').innerHTML = `<div class="page"><h1 class="h1">Info</h1>
+    <div class="lead info-text">${esc(data.info || 'О проекте')}</div>
+    ${isAdmin ? `<button class="cta red wide" data-act="openAdmin">Админ-панель</button>` : ''}</div>`;
 }
 
 /* ---------- навигация ---------- */
@@ -260,12 +331,14 @@ function renderTab() {
   const m = $('#main');
   ({ home: renderHome, cart: renderCart, info: renderInfo })[state.tab]();
   m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
+  m.classList.toggle('is-home', state.tab === 'home'); if (state.tab !== 'home') setTheme(null);
   m.scrollTop = 0; updateBadge();
 }
 function setSheet(name, open) {
   $('#' + name).classList.toggle('open', open);
   $('#' + name).setAttribute('aria-hidden', String(!open));
   const any = $('#detail').classList.contains('open') || $('#admin').classList.contains('open');
+  if (name === 'detail' && !open) setTheme(state.tab === 'home' ? data.products[state.hi || 0] : null);
   document.body.classList.toggle('sheet-open', any);
   if (tg && tg.BackButton) { any ? tg.BackButton.show() : tg.BackButton.hide(); }
 }
@@ -296,7 +369,7 @@ function renderAdmin() {
   if (t === 'stats') body = adminStats();
   if (t === 'data') body = adminData();
   $('#admin').innerHTML = `<button class="back glass" data-act="closeAdmin" aria-label="Назад">‹</button>
-    <div class="apage"><h1 class="h1">Админка</h1><div class="stripe"></div>
+    <div class="apage"><h1 class="h1">Админка</h1>
     <div class="atabs">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="atab" data-t="${k}">${n}</button>`).join('')}</div>
     ${body}</div>`;
 }
@@ -509,4 +582,5 @@ if (CFG.SHOW_ID_BANNER) {
 })();
 
 updateBadge(); renderTab();
+setTimeout(() => document.body.classList.remove('boot'), 1800);
 })();
